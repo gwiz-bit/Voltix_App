@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Đơn hàng - Voltix Admin{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Đơn hàng</h3>
+  <div class="btn-group flex-wrap">
+    <a href="/admin/orders/list" class="btn btn-sm btn-outline-dark {{ 'active' if not status_filter }}">Tất cả</a>
+    {% for key, (label, color) in STATUS_LABELS.items() %}
+    <a href="?status_filter={{ key }}" class="btn btn-sm btn-outline-{{ color }} {{ 'active' if status_filter == key }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Mã</th><th>Khách hàng</th><th>Người nhận</th><th>Ngày đặt</th><th>Thanh toán</th><th class="text-end">Tổng tiền</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+      {% for o in orders %}
+      <tr style="cursor:pointer" onclick="location='/admin/orders/{{ o.id }}'">
+        <td>#{{ o.id }}</td>
+        <td>{{ o.user.full_name }}</td>
+        <td>{{ o.receiver }}<br><small class="text-muted">{{ o.phone }}</small></td>
+        <td>{{ o.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>{{ o.payment_method }}</td>
+        <td class="text-end">{{ o.total|vnd }}</td>
+        <td><span class="badge text-bg-{{ STATUS_LABELS[o.status][1] }}">{{ STATUS_LABELS[o.status][0] }}</span></td>
+      </tr>
+      {% else %}<tr><td colspan="7" class="text-muted text-center p-4">Không có đơn hàng</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

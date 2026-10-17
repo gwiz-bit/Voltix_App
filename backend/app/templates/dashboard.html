@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Thống kê - Voltix Admin{% endblock %}
+{% block content %}
+<h3 class="mb-4">Báo cáo thống kê</h3>
+<div class="row g-3 mb-4">
+  {% set cards = [
+    ('Doanh thu tháng này', summary.month_revenue|vnd, 'bi-cash-stack', 'primary'),
+    ('Doanh thu hôm nay', summary.today_revenue|vnd, 'bi-graph-up-arrow', 'success'),
+    ('Tổng doanh thu', summary.total_revenue|vnd, 'bi-bank', 'info'),
+    ('Đơn cần xử lý', summary.pending_orders ~ ' / ' ~ summary.total_orders, 'bi-hourglass-split', 'warning'),
+    ('Khách hàng', summary.customers, 'bi-people', 'secondary'),
+    ('Sản phẩm sắp hết', summary.low_stock ~ ' / ' ~ summary.products, 'bi-exclamation-triangle', 'danger'),
+  ] %}
+  {% for label, value, icon, color in cards %}
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card p-3 h-100">
+      <div class="text-muted small"><i class="bi {{ icon }} text-{{ color }}"></i> {{ label }}</div>
+      <div class="fs-5 fw-bold mt-1">{{ value }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-8"><div class="card p-3"><h6>Doanh thu 30 ngày gần nhất</h6><canvas id="revenueChart" height="110"></canvas></div></div>
+  <div class="col-lg-4"><div class="card p-3"><h6>Doanh thu theo danh mục</h6><canvas id="categoryChart"></canvas></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-lg-6"><div class="card p-3"><h6>Doanh thu theo tháng</h6><canvas id="monthChart" height="160"></canvas></div></div>
+  <div class="col-lg-6"><div class="card p-3"><h6>Đơn hàng theo trạng thái</h6><canvas id="statusChart" height="160"></canvas></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card p-3">
+      <h6>Top sản phẩm bán chạy</h6>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Sản phẩm</th><th class="text-end">Đã bán</th><th class="text-end">Doanh thu</th></tr></thead>
+        <tbody>
+        {% for p in top %}<tr><td>{{ p.name }}</td><td class="text-end">{{ p.sold }}</td><td class="text-end">{{ p.revenue|vnd }}</td></tr>
+        {% else %}<tr><td colspan="3" class="text-muted">Chưa có dữ liệu</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h6>Sản phẩm sắp hết hàng (≤ 5)</h6>
+      <table class="table table-sm mb-0">
+        <tbody>
+        {% for p in low_stock %}<tr><td><a href="/admin/products/{{ p.id }}/edit">{{ p.name }}</a></td><td class="text-end"><span class="badge text-bg-{{ 'danger' if p.stock == 0 else 'warning' }}">{{ p.stock }}</span></td></tr>
+        {% else %}<tr><td class="text-muted">Không có</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+  const vnd = v => new Intl.NumberFormat('vi-VN').format(v) + ' ₫';
+  const days = {{ revenue_days|tojson }};
+  const months = {{ revenue_months|tojson }};
+  const cats = {{ by_category|tojson }};
+  const statuses = {{ by_status|tojson }};
+  const labels = {{ STATUS_LABELS|tojson }};
+  const moneyAxis = { ticks: { callback: v => new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(v) } };
+  const moneyTip = { callbacks: { label: c => vnd(c.parsed.y ?? c.parsed) } };
+
+  new Chart(revenueChart, {
+    type: 'line',
+    data: { labels: days.map(d => d.date.slice(5)), datasets: [{ label: 'Doanh thu', data: days.map(d => d.revenue), borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,.1)', fill: true, tension: .3 }] },
+    options: { plugins: { legend: { display: false }, tooltip: moneyTip }, scales: { y: moneyAxis } }
+  });
+  new Chart(categoryChart, {
+    type: 'doughnut',
+    data: { labels: cats.map(c => c.category), datasets: [{ data: cats.map(c => c.revenue) }] },
+    options: { plugins: { tooltip: { callbacks: { label: c => c.label + ': ' + vnd(c.parsed) } } } }
+  });
+  new Chart(monthChart, {
+    type: 'bar',
+    data: { labels: months.map(m => m.month), datasets: [{ label: 'Doanh thu', data: months.map(m => m.revenue), backgroundColor: '#1565c0' }] },
+    options: { plugins: { legend: { display: false }, tooltip: moneyTip }, scales: { y: moneyAxis } }
+  });
+  new Chart(statusChart, {
+    type: 'bar',
+    data: { labels: statuses.map(s => labels[s.status][0]), datasets: [{ label: 'Số đơn', data: statuses.map(s => s.count), backgroundColor: '#26a69a' }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+  });
+</script>
+{% endblock %}

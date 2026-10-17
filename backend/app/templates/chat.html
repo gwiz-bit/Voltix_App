@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Chat tư vấn - Voltix Admin{% endblock %}
+{% block head %}
+<style>
+  .conv { cursor: pointer; }
+  .conv.active { background: #e3f2fd; }
+  #messages { height: 60vh; overflow-y: auto; background: #f8f9fb; }
+  .bubble { max-width: 75%; padding: 8px 12px; border-radius: 14px; margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
+  .mine { background: #1565c0; color: #fff; margin-left: auto; }
+  .theirs { background: #fff; border: 1px solid #e5e7eb; }
+</style>
+{% endblock %}
+{% block content %}
+<h3 class="mb-3">Chat tư vấn <span id="status" class="badge text-bg-secondary fs-6">Đang kết nối…</span></h3>
+<div class="row g-3">
+  <div class="col-md-4"><div class="card"><ul id="convs" class="list-group list-group-flush"></ul></div></div>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="p-2 border-bottom fw-semibold" id="title">Chọn một cuộc trò chuyện</div>
+      <div id="messages" class="p-3 d-flex flex-column"></div>
+      <form id="form" class="d-flex gap-2 p-2 border-top">
+        <input id="input" class="form-control" placeholder="Nhập tin nhắn…" maxlength="2000" autocomplete="off" disabled>
+        <button class="btn btn-primary" disabled id="send"><i class="bi bi-send"></i></button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const TOKEN = {{ token|tojson }};
+  const ME = {{ user.id }};
+  const headers = { Authorization: 'Bearer ' + TOKEN };
+  let current = null;
+
+  const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const time = t => new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+
+  async function loadConvs() {
+    const list = await (await fetch('/api/chat/conversations', { headers })).json();
+    convs.innerHTML = list.map(c => `
+      <li class="list-group-item conv ${c.id === current ? 'active' : ''}" data-id="${c.id}" data-name="${esc(c.customer_name)}">
+        <div class="d-flex justify-content-between"><strong>${esc(c.customer_name)}</strong>
+        ${c.unread ? `<span class="badge text-bg-danger">${c.unread}</span>` : ''}</div>
+        <small class="text-muted text-truncate d-block">${esc(c.last_message || '')}</small>
+      </li>`).join('') || '<li class="list-group-item text-muted">Chưa có cuộc trò chuyện</li>';
+  }
+
+  function addMessage(m) {
+    const div = document.createElement('div');
+    div.className = 'bubble ' + (m.sender_role !== 'customer' ? 'mine' : 'theirs');
+    div.innerHTML = `${esc(m.content)}<div class="small opacity-75">${m.sender_role !== 'customer' ? esc(m.sender_name) + ' · ' : ''}${time(m.created_at)}</div>`;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function openConv(id, name) {
+    current = id;
+    title.textContent = name;
+    input.disabled = send.disabled = false;
+    const list = await (await fetch(`/api/chat/conversations/${id}/messages`, { headers })).json();
+    messages.innerHTML = '';
+    list.forEach(addMessage);
+    loadConvs();
+  }
+
+  convs.addEventListener('click', e => {
+    const li = e.target.closest('.conv');
+    if (li) openConv(+li.dataset.id, li.dataset.name);
+  });
+
+  let ws;
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/chat?token=${encodeURIComponent(TOKEN)}`);
+    ws.onopen = () => { status.textContent = 'Trực tuyến'; status.className = 'badge text-bg-success fs-6'; };
+    ws.onclose = () => { status.textContent = 'Mất kết nối – đang thử lại'; status.className = 'badge text-bg-danger fs-6'; setTimeout(connect, 3000); };
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      if (m.error) return alert(m.error);
+      if (m.conversation_id === current) {
+        addMessage(m);
+        if (m.sender_id !== ME) fetch(`/api/chat/conversations/${current}/messages`, { headers }); // đánh dấu đã đọc
+      }
+      loadConvs();
+    };
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const content = input.value.trim();
+    if (!content || !current || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ conversation_id: current, content }));
+    input.value = '';
+  });
+
+  loadConvs();
+  connect();
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sửa' if product else 'Thêm' }} sản phẩm - Voltix Admin{% endblock %}
+{% block content %}
+{% set f = form or {} %}
+{% macro val(key, default='') %}{{ f[key] if key in f else (product[key] if product and product[key] is not none else default) }}{% endmacro %}
+<h3 class="mb-3">{{ 'Sửa sản phẩm #' ~ product.id if product else 'Thêm sản phẩm' }}</h3>
+<form method="post" action="/admin/products/save" class="card p-3 p-md-4">
+  {% if product %}<input type="hidden" name="product_id" value="{{ product.id }}">{% endif %}
+  <div class="row g-3">
+    <div class="col-md-8"><label class="form-label">Tên sản phẩm *</label><input name="name" class="form-control" required minlength="2" maxlength="200" value="{{ val('name') }}"></div>
+    <div class="col-md-4"><label class="form-label">Tồn kho *</label><input name="stock" type="number" min="0" class="form-control" required value="{{ val('stock', 0) }}"></div>
+    <div class="col-md-6"><label class="form-label">Danh mục *</label>
+      <select name="category_id" class="form-select" required>
+        {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if val('category_id')|string == c.id|string }}>{{ c.name }}</option>{% endfor %}
+      </select></div>
+    <div class="col-md-6"><label class="form-label">Thương hiệu *</label>
+      <select name="brand_id" class="form-select" required>
+        {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if val('brand_id')|string == b.id|string }}>{{ b.name }}</option>{% endfor %}
+      </select></div>
+    <div class="col-md-6"><label class="form-label">Giá gốc (₫) *</label><input name="price" type="number" min="0" class="form-control" required value="{{ val('price') }}"></div>
+    <div class="col-md-6"><label class="form-label">Giá khuyến mãi (₫)</label><input name="sale_price" type="number" min="0" class="form-control" value="{{ val('sale_price') }}"></div>
+    <div class="col-12"><label class="form-label">URL ảnh</label><input name="image_url" type="url" class="form-control" value="{{ val('image_url') }}"></div>
+    <div class="col-12"><label class="form-label">Mô tả</label><textarea name="description" rows="3" class="form-control">{{ val('description') }}</textarea></div>
+    <div class="col-12">
+      <label class="form-label">Thông số kỹ thuật (JSON)</label>
+      <textarea name="specs" rows="3" class="form-control font-monospace" placeholder='{"socket": "AM5", "ram_type": "DDR5", "tdp": 65}'>{% if f.specs is defined %}{{ f.specs }}{% elif product and product.specs %}{{ product.specs|tojson }}{% endif %}</textarea>
+      <div class="form-text">Dùng cho PC Builder: CPU/Mainboard cần <code>socket</code>; Mainboard/RAM cần <code>ram_type</code>; CPU/VGA cần <code>tdp</code>; Nguồn cần <code>wattage</code>; Tản nhiệt cần <code>sockets</code> (mảng).</div>
+    </div>
+    <div class="col-12 form-check ms-2">
+      <input class="form-check-input" type="checkbox" name="is_active" value="true" id="active" {{ 'checked' if (f.is_active if 'is_active' in f else (product.is_active if product else true)) }}>
+      <label class="form-check-label" for="active">Đang bán</label>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button class="btn btn-primary">Lưu</button>
+    <a href="/admin/products" class="btn btn-outline-secondary">Huỷ</a>
+  </div>
+</form>
+{% endblock %}

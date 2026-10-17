@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - Voltix Admin{% endblock %}
+{% block content %}
+{% set labels = {'name': 'Tên', 'slug': 'Slug (a-z, 0-9, -)', 'logo_url': 'URL logo'} %}
+<h3 class="mb-3">{{ title }}</h3>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <form method="post" action="/admin/{{ kind }}/save" class="card p-3">
+      <h6>{{ 'Sửa' if editing else 'Thêm' }} {{ title|lower }}</h6>
+      {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+      {% for field in fields %}
+      <div class="mb-2">
+        <label class="form-label">{{ labels[field] }}</label>
+        <input name="{{ field }}" class="form-control" value="{{ editing[field] if editing and editing[field] else '' }}"
+               {% if field == 'name' or field == 'slug' %}required{% endif %} {% if field == 'slug' %}pattern="[a-z0-9-]+"{% endif %}>
+      </div>
+      {% endfor %}
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-primary">Lưu</button>
+        {% if editing %}<a href="/admin/{{ kind }}" class="btn btn-outline-secondary">Huỷ</a>{% endif %}
+      </div>
+    </form>
+  </div>
+  <div class="col-lg-8">
+    <div class="card">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>#</th>{% for field in fields %}<th>{{ labels[field] }}</th>{% endfor %}<th></th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.id }}</td>
+          {% for field in fields %}<td class="text-truncate" style="max-width:240px">{{ row[field] or '' }}</td>{% endfor %}
+          <td class="text-nowrap text-end">
+            <a href="/admin/{{ kind }}?edit={{ row.id }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="/admin/{{ kind }}/{{ row.id }}/delete" class="d-inline" onsubmit="return confirm('Xoá {{ row.name }}?')">
+              <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
