@@ -1,0 +1,137 @@
+// ERD của Voltix — dán vào https://dbdiagram.io rồi Export PNG thành docs/ERD.png
+
+Table users {
+  id int [pk, increment]
+  full_name varchar
+  email varchar [unique]
+  phone varchar
+  password_hash varchar
+  role enum_role
+  avatar_url varchar
+  is_active boolean
+  created_at datetime
+}
+Enum enum_role { customer staff admin }
+
+Table addresses {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  receiver varchar
+  phone varchar
+  detail varchar
+  is_default boolean
+}
+
+Table categories {
+  id int [pk, increment]
+  name varchar
+  slug varchar [unique]
+}
+
+Table brands {
+  id int [pk, increment]
+  name varchar [unique]
+  logo_url varchar
+}
+
+Table products {
+  id int [pk, increment]
+  category_id int [ref: > categories.id]
+  brand_id int [ref: > brands.id]
+  name varchar
+  description text
+  price int
+  sale_price int
+  stock int
+  image_url varchar
+  specs json
+  is_active boolean
+  created_at datetime
+}
+
+Table product_images {
+  id int [pk, increment]
+  product_id int [ref: > products.id]
+  url varchar
+}
+
+Table cart_items {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  product_id int [ref: > products.id]
+  quantity int
+}
+
+Table orders {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  receiver varchar
+  phone varchar
+  shipping_address varchar
+  note varchar
+  total int
+  status enum_order_status
+  payment_method enum_payment_method
+  created_at datetime
+  updated_at datetime
+}
+Enum enum_order_status { pending paid confirmed shipping completed cancelled }
+Enum enum_payment_method { COD VNPAY }
+
+Table order_items {
+  id int [pk, increment]
+  order_id int [ref: > orders.id]
+  product_id int [ref: > products.id]
+  quantity int
+  unit_price int
+}
+
+Table payments {
+  id int [pk, increment]
+  order_id int [ref: > orders.id]
+  provider varchar
+  txn_ref varchar [unique]
+  amount int
+  status varchar
+  response_code varchar
+  paid_at datetime
+  created_at datetime
+}
+
+Table reviews {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  product_id int [ref: > products.id]
+  rating int
+  comment varchar
+  created_at datetime
+}
+
+Table conversations {
+  id int [pk, increment]
+  customer_id int [ref: > users.id]
+  staff_id int [ref: > users.id]
+  updated_at datetime
+}
+
+Table messages {
+  id int [pk, increment]
+  conversation_id int [ref: > conversations.id]
+  sender_id int [ref: > users.id]
+  content varchar
+  is_read boolean
+  created_at datetime
+}
+
+Table pc_builds {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  name varchar
+  created_at datetime
+}
+
+Table pc_build_items {
+  build_id int [pk, ref: > pc_builds.id]
+  product_id int [pk, ref: > products.id]
+  quantity int
+}
