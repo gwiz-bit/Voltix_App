@@ -3,9 +3,12 @@ import 'package:dio/dio.dart';
 import 'constants.dart';
 import 'storage.dart';
 
-/// Dio dùng chung: tự gắn JWT vào header của mọi request.
+/// Dio dùng chung: tự gắn JWT vào header và báo khi token hết hạn (401).
 class ApiClient {
   ApiClient._();
+
+  /// AuthProvider gán callback này để tự đăng xuất khi server trả 401.
+  static void Function()? onUnauthorized;
 
   static final Dio dio = Dio(
     BaseOptions(
@@ -22,6 +25,11 @@ class ApiClient {
           }
           handler.next(options);
         },
+        onError: (error, handler) {
+          final isLogin = error.requestOptions.path.startsWith('/auth/login');
+          if (error.response?.statusCode == 401 && !isLogin) onUnauthorized?.call();
+          handler.next(error);
+        },
       ),
     );
 
@@ -29,7 +37,14 @@ class ApiClient {
   static String messageOf(Object error) {
     if (error is DioException) {
       final data = error.response?.data;
-      if (data is Map && data['detail'] is String) return data['detail'] as String;
+      if (data is Map) {
+        final detail = data['detail'];
+        if (detail is String) return detail;
+        // Lỗi validate của FastAPI: [{"loc": [...], "msg": "..."}]
+        if (detail is List && detail.isNotEmpty && detail.first is Map) {
+          return 'Dữ liệu không hợp lệ: ${(detail.first as Map)['msg']}';
+        }
+      }
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.receiveTimeout:
@@ -37,7 +52,11 @@ class ApiClient {
         case DioExceptionType.connectionError:
           return 'Không thể kết nối máy chủ. Kiểm tra mạng của bạn.';
         default:
-          return 'Đã có lỗi xảy ra (${error.response?.statusCode ?? 'không rõ'}).';
+          final status = error.response?.statusCode;
+          // Lỗi không có phản hồi từ server (vd. lỗi trong interceptor) -> hiện nguyên nhân gốc.
+          if (status != null) return 'Đã có lỗi xảy ra ($status).';
+          final detail = '${error.error ?? error.message}'.split('\n').first;
+          return 'Đã có lỗi xảy ra: ${detail.length > 160 ? '${detail.substring(0, 160)}…' : detail}';
       }
     }
     final text = error.toString();
