@@ -1,10 +1,17 @@
 import 'product.dart';
 
 class CartItem {
+  final int id;
   final Product product;
-  int quantity;
+  final int quantity;
 
-  CartItem({required this.product, this.quantity = 1});
+  const CartItem({required this.id, required this.product, required this.quantity});
 
   int get subtotal => product.finalPrice * quantity;
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+        id: json['id'] as int,
+        quantity: json['quantity'] as int,
+        product: Product.fromJson(json['product'] as Map<String, dynamic>),
+      );
 }
