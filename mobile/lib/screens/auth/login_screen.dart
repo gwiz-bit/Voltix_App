@@ -48,8 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.memory, size: 72, color: theme.colorScheme.primary),
-                  const SizedBox(height: 8),
+                  Image.asset('assets/branding/logo_mark.png', height: 88),
+                  const SizedBox(height: 16),
                   Text('Đăng nhập ${AppConstants.appName}', textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
                   const SizedBox(height: 4),
                   const Text(AppConstants.tagline, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),

@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color primary = Color(0xFF1565C0);
+  /// Màu xanh điện của logo Voltix.
+  static const Color primary = Color(0xFF006BFB);
 
   static ThemeData get light => ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: primary),
+        colorScheme: ColorScheme.fromSeed(seedColor: primary, primary: primary),
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
         appBarTheme: const AppBarTheme(centerTitle: false),
         inputDecorationTheme: InputDecorationTheme(
