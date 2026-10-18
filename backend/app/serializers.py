@@ -24,6 +24,7 @@ def product_dict(p: Product, ratings: dict[int, tuple[float, int]] | None = None
         "id": p.id,
         "category_id": p.category_id,
         "category_name": p.category.name,
+        "category_slug": p.category.slug,
         "brand_id": p.brand_id,
         "brand_name": p.brand.name,
         "name": p.name,

@@ -106,6 +106,7 @@ class ProductOut(ORM):
     id: int
     category_id: int
     category_name: str
+    category_slug: str = ""
     brand_id: int
     brand_name: str
     name: str
@@ -234,6 +235,22 @@ class ConversationOut(BaseModel):
 
 
 # ===== PC Builder =====
+class AiBuildIn(BaseModel):
+    budget: int = Field(ge=5_000_000, le=300_000_000, description="Ngân sách (VND)")
+    purpose: Literal["gaming", "office", "design", "streaming"]
+    notes: str | None = Field(default=None, max_length=500, description="Yêu cầu thêm, vd: chơi Valorant, thích AMD")
+
+
+class AiBuildOut(BaseModel):
+    ai_powered: bool  # True nếu lời tư vấn do Claude viết
+    title: str
+    explanation: str
+    tips: list[str]
+    total: int
+    estimated_wattage: int
+    products: list[ProductOut]
+
+
 class BuildIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     product_ids: list[int] = Field(min_length=1)

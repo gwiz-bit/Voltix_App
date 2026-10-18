@@ -22,5 +22,8 @@ class Settings(BaseSettings):
 
     cors_origins: str = "*"
 
+    # Tuỳ chọn: có key thì AI build PC dùng Claude để chọn phương án + viết tư vấn.
+    anthropic_api_key: str = ""
+
 
 settings = Settings()

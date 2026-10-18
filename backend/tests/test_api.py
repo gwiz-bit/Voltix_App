@@ -163,6 +163,27 @@ def test_builder_compatibility():
     assert api.delete(f"/builds/{build.json()['id']}", headers=h).status_code == 204
 
 
+def test_ai_build_suggestion():
+    r = api.post("/builder/ai-suggest", json={"budget": 30_000_000, "purpose": "gaming", "notes": "chơi game 2K"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["total"] <= 30_000_000 and d["explanation"]
+    by_cat = {p["category_name"]: p for p in d["products"]}
+    cpu, board, ram = by_cat["CPU"], by_cat["Mainboard"], by_cat["RAM"]
+    assert cpu["specs"]["socket"] == board["specs"]["socket"]
+    assert ram["specs"]["ram_type"] == board["specs"]["ram_type"]
+    assert "Card đồ hoạ" in by_cat  # chơi game bắt buộc có card rời
+    assert by_cat["Nguồn"]["specs"]["wattage"] >= d["estimated_wattage"]
+
+    design = api.post("/builder/ai-suggest", json={"budget": 45_000_000, "purpose": "design"}).json()
+    assert next(p for p in design["products"] if p["category_name"] == "RAM")["specs"]["capacity_gb"] >= 32
+
+    too_low = api.post("/builder/ai-suggest", json={"budget": 6_000_000, "purpose": "gaming"})
+    assert too_low.status_code == 422
+    assert too_low.json()["detail"].startswith("Ngân sách quá thấp")
+    assert api.post("/builder/ai-suggest", json={"budget": 30_000_000, "purpose": "mining"}).status_code == 422
+
+
 def test_chat_rest_and_websocket():
     from websockets.sync.client import connect
 

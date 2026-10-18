@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Category, PcBuild, PcBuildItem, Product, User
-from ..schemas import BuildIn, BuildOut, ProductOut
+from ..schemas import AiBuildIn, AiBuildOut, BuildIn, BuildOut, ProductOut
 from ..security import get_current_user
 from ..serializers import products_dicts
+from ..services import ai_builder
 
 router = APIRouter(tags=["PC Builder"])
 
@@ -60,6 +61,29 @@ def compatible_products(
         .order_by(Product.price)
     ).unique().all()
     return products_dicts(db, [p for p in candidates if is_compatible(p, category, chosen)])
+
+
+SLOT_ORDER = ["cpu", "mainboard", "ram", "vga", "ssd", "psu", "case", "cooler"]
+
+
+@router.post("/builder/ai-suggest", response_model=AiBuildOut)
+def ai_suggest(data: AiBuildIn, db: Session = Depends(get_db)):
+    """AI gợi ý cấu hình hoàn chỉnh theo ngân sách + mục đích."""
+    try:
+        builds = ai_builder.search_builds(db, data.budget, data.purpose)
+    except ai_builder.BuildError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+    ai = ai_builder.claude_advice(builds, data.budget, data.purpose, data.notes)
+    choice, advice = ai if ai else (0, ai_builder.template_advice(builds[0], data.budget, data.purpose))
+    build = builds[choice]
+    products = [build.parts[s] for s in SLOT_ORDER if s in build.parts]
+    return {
+        "ai_powered": ai is not None,
+        **advice,
+        "total": build.total,
+        "estimated_wattage": build.wattage,
+        "products": products_dicts(db, products),
+    }
 
 
 def _build_dict(db: Session, build: PcBuild) -> dict:
