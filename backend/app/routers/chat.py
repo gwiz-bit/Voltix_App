@@ -59,28 +59,29 @@ ws_router = APIRouter()
 
 @ws_router.websocket("/ws/chat")
 async def chat_socket(ws: WebSocket, token: str = Query(...)):
-    db = SessionLocal()
-    try:
+    # Mỗi bước dùng session ngắn hạn: không giữ transaction/kết nối DB suốt thời gian socket mở.
+    with SessionLocal() as db:
         user = user_from_token(token, db)
-        if user is None:
-            await ws.close(code=4401)
-            return
-        await ws.accept()
-        hub.connect(user, ws)
-        try:
-            while True:
-                # Client gửi: {"conversation_id": 1, "content": "..."}
-                try:
-                    data = json.loads(await ws.receive_text())
+    if user is None:
+        await ws.close(code=4401)
+        return
+    await ws.accept()
+    hub.connect(user, ws)
+    try:
+        while True:
+            # Client gửi: {"conversation_id": 1, "content": "..."}
+            raw = await ws.receive_text()
+            try:
+                data = json.loads(raw)
+                with SessionLocal() as db:
                     conv = accessible_conversation(db, int(data["conversation_id"]), user)
-                    msg = save_message(db, conv, user, str(data.get("content", "")))
-                except (ValueError, KeyError, TypeError, HTTPException) as e:
-                    await ws.send_text(json.dumps({"error": getattr(e, "detail", "Dữ liệu không hợp lệ")}))
-                    continue
-                await hub.broadcast(message_dict(msg), conv.customer_id)
-        except WebSocketDisconnect:
-            pass
-        finally:
-            hub.disconnect(user, ws)
+                    payload = message_dict(save_message(db, conv, user, str(data.get("content", ""))))
+                    customer_id = conv.customer_id
+            except (ValueError, KeyError, TypeError, HTTPException) as e:
+                await ws.send_text(json.dumps({"error": getattr(e, "detail", "Dữ liệu không hợp lệ")}))
+                continue
+            await hub.broadcast(payload, customer_id)
+    except WebSocketDisconnect:
+        pass
     finally:
-        db.close()
+        hub.disconnect(user, ws)
