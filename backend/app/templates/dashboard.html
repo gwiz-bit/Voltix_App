@@ -69,7 +69,7 @@
 
   new Chart(revenueChart, {
     type: 'line',
-    data: { labels: days.map(d => d.date.slice(5)), datasets: [{ label: 'Doanh thu', data: days.map(d => d.revenue), borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,.1)', fill: true, tension: .3 }] },
+    data: { labels: days.map(d => d.date.slice(5)), datasets: [{ label: 'Doanh thu', data: days.map(d => d.revenue), borderColor: '#006bfb', backgroundColor: 'rgba(21,101,192,.1)', fill: true, tension: .3 }] },
     options: { plugins: { legend: { display: false }, tooltip: moneyTip }, scales: { y: moneyAxis } }
   });
   new Chart(categoryChart, {
@@ -79,7 +79,7 @@
   });
   new Chart(monthChart, {
     type: 'bar',
-    data: { labels: months.map(m => m.month), datasets: [{ label: 'Doanh thu', data: months.map(m => m.revenue), backgroundColor: '#1565c0' }] },
+    data: { labels: months.map(m => m.month), datasets: [{ label: 'Doanh thu', data: months.map(m => m.revenue), backgroundColor: '#006bfb' }] },
     options: { plugins: { legend: { display: false }, tooltip: moneyTip }, scales: { y: moneyAxis } }
   });
   new Chart(statusChart, {
