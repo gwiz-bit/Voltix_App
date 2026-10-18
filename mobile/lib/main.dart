@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -7,21 +8,28 @@ import 'core/router.dart';
 import 'core/theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
+import 'services/admin_service.dart';
 import 'services/auth_service.dart';
+import 'services/chat_service.dart';
 import 'services/product_service.dart';
+import 'services/shop_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Khoá màn hình dọc: giao diện chỉ thiết kế cho chiều dọc.
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  final AuthService authService = AppConstants.useMock ? MockAuthService() : ApiAuthService();
-  final ProductService productService = AppConstants.useMock ? MockProductService() : ApiProductService();
+  final shopService = ShopService();
 
   runApp(
     MultiProvider(
       providers: [
-        Provider<ProductService>.value(value: productService),
-        ChangeNotifierProvider(create: (_) => AuthProvider(authService)..init()),
-        ChangeNotifierProvider(create: (_) => CartProvider()),
+        Provider(create: (_) => ProductService()),
+        Provider.value(value: shopService),
+        Provider(create: (_) => ChatService()),
+        Provider(create: (_) => AdminService()),
+        ChangeNotifierProvider(create: (_) => AuthProvider(AuthService())..init()),
+        ChangeNotifierProvider(create: (_) => CartProvider(shopService)),
       ],
       child: const VoltixApp(),
     ),
