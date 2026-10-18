@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import settings
@@ -37,6 +40,9 @@ for r in (
 
 app.include_router(chat.ws_router)
 app.include_router(admin_web.router)
+
+# Ảnh sản phẩm: /static/products/<file>.jpg
+app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "static"), name="static")
 
 
 @app.get("/", include_in_schema=False)

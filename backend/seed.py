@@ -6,7 +6,7 @@ Chạy:  python seed.py          (xoá dữ liệu cũ và tạo lại)
 import random
 import sys
 from datetime import datetime, timedelta
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 
 from sqlalchemy import create_engine, text
 
@@ -39,14 +39,14 @@ BRANDS = ["Intel", "AMD", "ASUS", "MSI", "GIGABYTE", "ASRock", "Kingston", "Cors
 
 # (danh mục, thương hiệu, tên, giá, giá KM, tồn kho, specs, mô tả)
 PRODUCTS = [
-    ("cpu", "Intel", "Intel Core i3-14100F", 2590000, None, 30, {"socket": "LGA1700", "cores": 4, "threads": 8, "tdp": 58}, "4 nhân 8 luồng, xung tối đa 4.7GHz, lựa chọn tiết kiệm cho PC văn phòng và gaming nhẹ."),
-    ("cpu", "Intel", "Intel Core i5-14400F", 4290000, 3990000, 25, {"socket": "LGA1700", "cores": 10, "threads": 16, "tdp": 65}, "10 nhân 16 luồng, xung tối đa 4.7GHz. CPU gaming quốc dân phân khúc tầm trung."),
-    ("cpu", "Intel", "Intel Core i7-14700K", 9890000, 9490000, 10, {"socket": "LGA1700", "cores": 20, "threads": 28, "tdp": 125}, "20 nhân 28 luồng, xung 5.6GHz, mở khoá ép xung, mạnh cho cả game và đồ hoạ."),
-    ("cpu", "Intel", "Intel Core i9-14900K", 14490000, None, 4, {"socket": "LGA1700", "cores": 24, "threads": 32, "tdp": 125}, "24 nhân 32 luồng, xung tối đa 6.0GHz – CPU desktop mạnh nhất của Intel thế hệ 14."),
-    ("cpu", "AMD", "AMD Ryzen 5 7600", 5190000, None, 18, {"socket": "AM5", "cores": 6, "threads": 12, "tdp": 65}, "6 nhân 12 luồng, kiến trúc Zen 4, hỗ trợ DDR5 và PCIe 5.0."),
-    ("cpu", "AMD", "AMD Ryzen 7 7700X", 7690000, 7290000, 12, {"socket": "AM5", "cores": 8, "threads": 16, "tdp": 105}, "8 nhân 16 luồng, xung 5.4GHz, hiệu năng đơn nhân rất mạnh."),
-    ("cpu", "AMD", "AMD Ryzen 7 7800X3D", 10990000, 10490000, 7, {"socket": "AM5", "cores": 8, "threads": 16, "tdp": 120}, "8 nhân 16 luồng với 3D V-Cache 96MB – CPU chơi game hàng đầu."),
-    ("cpu", "AMD", "AMD Ryzen 5 5600", 2790000, 2590000, 22, {"socket": "AM4", "cores": 6, "threads": 12, "tdp": 65}, "6 nhân 12 luồng, nền tảng AM4 giá tốt, dùng RAM DDR4."),
+    ("cpu", "Intel", "Intel Core i3-14100F", 2590000, None, 30, {"igpu": False, "socket": "LGA1700", "cores": 4, "threads": 8, "tdp": 58}, "4 nhân 8 luồng, xung tối đa 4.7GHz, lựa chọn tiết kiệm cho PC văn phòng và gaming nhẹ."),
+    ("cpu", "Intel", "Intel Core i5-14400F", 4290000, 3990000, 25, {"igpu": False, "socket": "LGA1700", "cores": 10, "threads": 16, "tdp": 65}, "10 nhân 16 luồng, xung tối đa 4.7GHz. CPU gaming quốc dân phân khúc tầm trung."),
+    ("cpu", "Intel", "Intel Core i7-14700K", 9890000, 9490000, 10, {"igpu": True, "socket": "LGA1700", "cores": 20, "threads": 28, "tdp": 125}, "20 nhân 28 luồng, xung 5.6GHz, mở khoá ép xung, mạnh cho cả game và đồ hoạ."),
+    ("cpu", "Intel", "Intel Core i9-14900K", 14490000, None, 4, {"igpu": True, "socket": "LGA1700", "cores": 24, "threads": 32, "tdp": 125}, "24 nhân 32 luồng, xung tối đa 6.0GHz – CPU desktop mạnh nhất của Intel thế hệ 14."),
+    ("cpu", "AMD", "AMD Ryzen 5 7600", 5190000, None, 18, {"igpu": True, "socket": "AM5", "cores": 6, "threads": 12, "tdp": 65}, "6 nhân 12 luồng, kiến trúc Zen 4, hỗ trợ DDR5 và PCIe 5.0."),
+    ("cpu", "AMD", "AMD Ryzen 7 7700X", 7690000, 7290000, 12, {"igpu": True, "socket": "AM5", "cores": 8, "threads": 16, "tdp": 105}, "8 nhân 16 luồng, xung 5.4GHz, hiệu năng đơn nhân rất mạnh."),
+    ("cpu", "AMD", "AMD Ryzen 7 7800X3D", 10990000, 10490000, 7, {"igpu": True, "socket": "AM5", "cores": 8, "threads": 16, "tdp": 120}, "8 nhân 16 luồng với 3D V-Cache 96MB – CPU chơi game hàng đầu."),
+    ("cpu", "AMD", "AMD Ryzen 5 5600", 2790000, 2590000, 22, {"igpu": False, "socket": "AM4", "cores": 6, "threads": 12, "tdp": 65}, "6 nhân 12 luồng, nền tảng AM4 giá tốt, dùng RAM DDR4."),
 
     ("mainboard", "ASUS", "ASUS PRIME B760M-A WIFI D4", 3490000, None, 12, {"socket": "LGA1700", "ram_type": "DDR4", "form": "mATX"}, "Chipset B760, hỗ trợ DDR4, WiFi 6, 2 khe M.2."),
     ("mainboard", "MSI", "MSI PRO B760M-P DDR5", 2890000, 2690000, 15, {"socket": "LGA1700", "ram_type": "DDR5", "form": "mATX"}, "Chipset B760, DDR5, thiết kế tối giản, giá tốt."),
@@ -95,9 +95,22 @@ PRODUCTS = [
 ]
 
 
-def image_url(name: str) -> str:
-    # Ảnh placeholder có chữ tên sản phẩm; admin có thể thay bằng ảnh thật trong web admin.
-    return f"https://placehold.co/600x600/0f1b2d/ffffff/png?text={quote(name[:28])}&font=roboto"
+def image_url(slug: str, brand: str, name: str, specs: dict) -> str:
+    """Ảnh thật theo loại linh kiện / hãng (tải bằng tools/fetch_images.py, nguồn trong docs/IMAGE_CREDITS.md).
+
+    Đường dẫn tương đối: app tự ghép với địa chỉ server nên đổi server không cần sửa DB.
+    """
+    if slug == "cpu":
+        key = "cpu-intel" if brand == "Intel" else "cpu-amd"
+    elif slug == "vga":
+        key = "vga-amd" if "Radeon" in name else ("vga-gigabyte" if brand == "GIGABYTE" else "vga-nvidia")
+    elif slug == "case":
+        key = "case-corsair" if "4000D" in name else "case"
+    elif slug == "cooler":
+        key = "cooler-aio" if specs.get("type") == "aio" else "cooler-air"
+    else:
+        key = slug
+    return f"/static/products/{key}.jpg"
 
 
 def create_database():
@@ -124,7 +137,7 @@ def main():
     for i, (slug, brand, name, price, sale, stock, specs, desc) in enumerate(PRODUCTS):
         p = Product(
             category_id=cats[slug].id, brand_id=brands[brand].id, name=name, description=desc,
-            price=price, sale_price=sale, stock=stock, image_url=image_url(name), specs=specs,
+            price=price, sale_price=sale, stock=stock, image_url=image_url(slug, brand, name, specs), specs=specs,
             created_at=datetime.now() - timedelta(days=len(PRODUCTS) - i),
         )
         products.append(p)
