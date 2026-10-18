@@ -1,48 +1,59 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/api_client.dart';
 import '../models/cart_item.dart';
-import '../models/product.dart';
+import '../services/shop_service.dart';
 
-/// Giỏ hàng lưu trong bộ nhớ ở Mốc 1; Mốc 3 sẽ đồng bộ với API /cart.
+/// Giỏ hàng lưu trên server (bảng cart_items) để đồng bộ giữa các thiết bị.
 class CartProvider extends ChangeNotifier {
-  final List<CartItem> _items = [];
+  CartProvider(this._service);
 
-  List<CartItem> get items => List.unmodifiable(_items);
-  int get count => _items.fold(0, (sum, i) => sum + i.quantity);
-  int get total => _items.fold(0, (sum, i) => sum + i.subtotal);
-  bool get isEmpty => _items.isEmpty;
+  final ShopService _service;
 
-  /// Trả về false nếu vượt quá tồn kho.
-  bool add(Product product, {int quantity = 1}) {
-    final existing = _items.where((i) => i.product.id == product.id).firstOrNull;
-    final newQty = (existing?.quantity ?? 0) + quantity;
-    if (newQty > product.stock) return false;
-    if (existing != null) {
-      existing.quantity = newQty;
-    } else {
-      _items.add(CartItem(product: product, quantity: quantity));
+  List<CartItem> items = [];
+  int total = 0;
+  int count = 0;
+  bool loading = false;
+  String? error;
+
+  bool get isEmpty => items.isEmpty;
+
+  Future<void> load() => _run(_service.getCart);
+
+  /// Trả về null nếu thành công, ngược lại là thông báo lỗi.
+  Future<String?> add(int productId, {int quantity = 1}) =>
+      _run(() => _service.addToCart(productId, quantity: quantity));
+
+  Future<String?> setQuantity(CartItem item, int quantity) => quantity <= 0
+      ? _run(() => _service.removeCartItem(item.id))
+      : _run(() => _service.updateCartItem(item.id, quantity));
+
+  Future<String?> remove(CartItem item) => _run(() => _service.removeCartItem(item.id));
+
+  /// Gọi khi đăng xuất hoặc sau khi đặt hàng (server đã xoá giỏ).
+  void reset() {
+    items = [];
+    total = 0;
+    count = 0;
+    error = null;
+    notifyListeners();
+  }
+
+  Future<String?> _run(Future<CartData> Function() action) async {
+    loading = true;
+    notifyListeners();
+    try {
+      final cart = await action();
+      items = cart.items;
+      total = cart.total;
+      count = cart.count;
+      error = null;
+    } catch (e) {
+      error = ApiClient.messageOf(e);
+    } finally {
+      loading = false;
+      notifyListeners();
     }
-    notifyListeners();
-    return true;
-  }
-
-  void setQuantity(int productId, int quantity) {
-    final item = _items.firstWhere((i) => i.product.id == productId);
-    if (quantity <= 0) {
-      _items.remove(item);
-    } else if (quantity <= item.product.stock) {
-      item.quantity = quantity;
-    }
-    notifyListeners();
-  }
-
-  void remove(int productId) {
-    _items.removeWhere((i) => i.product.id == productId);
-    notifyListeners();
-  }
-
-  void clear() {
-    _items.clear();
-    notifyListeners();
+    return error;
   }
 }
