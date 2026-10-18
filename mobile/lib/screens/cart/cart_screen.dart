@@ -3,87 +3,54 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/format.dart';
+import '../../models/cart_item.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/common.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
+  Future<void> _change(BuildContext context, Future<String?> action) async {
+    final error = await action;
+    if (error != null && context.mounted) showMessage(context, error, error: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Giỏ hàng')),
-      body: cart.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.remove_shopping_cart_outlined, size: 64, color: Colors.grey),
-                  const SizedBox(height: 12),
-                  const Text('Giỏ hàng trống'),
-                  const SizedBox(height: 12),
-                  OutlinedButton(onPressed: () => context.go('/home'), child: const Text('Mua sắm ngay')),
-                ],
+      appBar: AppBar(
+        title: Text('Giỏ hàng (${cart.count})'),
+        bottom: cart.loading
+            ? const PreferredSize(preferredSize: Size.fromHeight(2), child: LinearProgressIndicator(minHeight: 2))
+            : null,
+      ),
+      body: RefreshIndicator(
+        onRefresh: cart.load,
+        child: cart.isEmpty
+            ? ListView(children: [
+                SizedBox(
+                  height: 400,
+                  child: cart.error != null
+                      ? ErrorView(message: cart.error!, onRetry: cart.load)
+                      : EmptyView(
+                          icon: Icons.remove_shopping_cart_outlined,
+                          message: 'Giỏ hàng trống',
+                          action: OutlinedButton(onPressed: () => context.go('/home'), child: const Text('Mua sắm ngay')),
+                        ),
+                ),
+              ])
+            : ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: cart.items.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, i) => _CartTile(
+                  item: cart.items[i],
+                  onChange: (q) => _change(context, cart.setQuantity(cart.items[i], q)),
+                  onRemove: () => _change(context, cart.remove(cart.items[i])),
+                ),
               ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: cart.items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, i) {
-                final item = cart.items[i];
-                final p = item.product;
-                return Dismissible(
-                  key: ValueKey(p.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    color: Colors.redAccent,
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) => cart.remove(p.id),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(width: 72, height: 72, child: ProductImage(p.imageUrl)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                const SizedBox(height: 4),
-                                Text(formatVnd(p.finalPrice), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline),
-                                onPressed: item.quantity < p.stock ? () => cart.setQuantity(p.id, item.quantity + 1) : null,
-                              ),
-                              Text('${item.quantity}'),
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => cart.setQuantity(p.id, item.quantity - 1),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+      ),
       bottomNavigationBar: cart.isEmpty
           ? null
           : SafeArea(
@@ -99,7 +66,10 @@ class CartScreen extends StatelessWidget {
                           const Text('Tổng cộng'),
                           Text(
                             formatVnd(cart.total),
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.red, fontWeight: FontWeight.bold),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(color: Colors.red, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -107,8 +77,7 @@ class CartScreen extends StatelessWidget {
                     SizedBox(
                       width: 160,
                       child: FilledButton(
-                        // Màn Checkout + VNPay sẽ làm ở Mốc 3.
-                        onPressed: () => showMessage(context, 'Chức năng thanh toán sẽ có ở Mốc 3'),
+                        onPressed: cart.loading ? null : () => context.push('/checkout'),
                         child: const Text('Đặt hàng'),
                       ),
                     ),
@@ -116,6 +85,75 @@ class CartScreen extends StatelessWidget {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _CartTile extends StatelessWidget {
+  const _CartTile({required this.item, required this.onChange, required this.onRemove});
+
+  final CartItem item;
+  final ValueChanged<int> onChange;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = item.product;
+    return Dismissible(
+      key: ValueKey(item.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      onDismissed: (_) => onRemove(),
+      child: Card(
+        child: InkWell(
+          onTap: () => context.push('/products/${p.id}'),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(width: 72, height: 72, child: ProductImage(p.imageUrl)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text(formatVnd(p.finalPrice),
+                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      if (item.quantity > p.stock)
+                        Text('Chỉ còn ${p.stock} sản phẩm', style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: item.quantity < p.stock ? () => onChange(item.quantity + 1) : null,
+                    ),
+                    Text('${item.quantity}'),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(item.quantity == 1 ? Icons.delete_outline : Icons.remove_circle_outline),
+                      onPressed: () => onChange(item.quantity - 1),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
