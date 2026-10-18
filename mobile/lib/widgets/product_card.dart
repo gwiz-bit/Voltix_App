@@ -45,6 +45,13 @@ class ProductCard extends StatelessWidget {
                         color: Colors.grey,
                       ),
                     ),
+                  if (product.reviewCount > 0)
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        Text(' ${product.avgRating} (${product.reviewCount})', style: theme.textTheme.bodySmall),
+                      ],
+                    ),
                   if (!product.inStock)
                     Text('Hết hàng', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
                 ],
@@ -71,13 +78,15 @@ class ProductGrid extends StatelessWidget {
       physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(12),
       itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.62,
-      ),
+      gridDelegate: productGridDelegate,
       itemBuilder: (_, i) => ProductCard(product: products[i]),
     );
   }
 }
+
+const productGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+  crossAxisCount: 2,
+  mainAxisSpacing: 12,
+  crossAxisSpacing: 12,
+  childAspectRatio: 0.58,
+);

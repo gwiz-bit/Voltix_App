@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../models/category.dart';
 import '../../models/product.dart';
 import '../../services/product_service.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_card.dart';
+
+typedef _HomeData = ({List<Category> categories, List<Product> bestSelling, List<Product> newest});
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +20,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<(List<Category>, List<Product>)> _future;
+  late Future<_HomeData> _future;
 
   @override
   void initState() {
@@ -26,10 +28,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _future = _load();
   }
 
-  Future<(List<Category>, List<Product>)> _load() async {
+  Future<_HomeData> _load() async {
     final service = context.read<ProductService>();
-    final results = await Future.wait([service.getCategories(), service.getProducts()]);
-    return (results[0] as List<Category>, results[1] as List<Product>);
+    // Gọi song song 3 API.
+    final (categories, best, newest) = await (
+      service.getCategories(),
+      service.getProducts(sort: ProductSort.bestSelling, size: 6),
+      service.getProducts(sort: ProductSort.newest, size: 10),
+    ).wait;
+    return (categories: categories, bestSelling: best.items, newest: newest.items);
   }
 
   Future<void> _refresh() async {
@@ -41,7 +48,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          children: [
+            Image.asset('assets/branding/logo_mark.png', height: 26),
+            const SizedBox(width: 8),
+            const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Chat tư vấn',
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => context.push('/chat'),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
           child: Padding(
@@ -60,51 +80,97 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: FutureBuilder(
+      body: FutureView(
         future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return ErrorView(message: ApiClient.messageOf(snapshot.error!), onRetry: _refresh);
-          }
-          final (categories, products) = snapshot.data!;
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView(
+        onRetry: _refresh,
+        builder: (context, data) => RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            children: [
+              _BuilderBanner(onTap: () => context.go('/builder')),
+              const _SectionTitle('Danh mục'),
+              SizedBox(
+                height: 96,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: data.categories.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => _CategoryChip(category: data.categories[i]),
+                ),
+              ),
+              _SectionTitle('Bán chạy nhất', onMore: () => context.push('/products?sort=best_selling&title=Bán chạy')),
+              ProductGrid(products: data.bestSelling, shrinkWrap: true),
+              _SectionTitle('Hàng mới về', onMore: () => context.push('/products?title=Tất cả sản phẩm')),
+              ProductGrid(products: data.newest, shrinkWrap: true),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BuilderBanner extends StatelessWidget {
+  const _BuilderBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Material(
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Colors.black, AppTheme.primary]),
+            ),
+            child: const Row(
               children: [
-                const _SectionTitle('Danh mục'),
-                SizedBox(
-                  height: 96,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: categories.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) => _CategoryChip(category: categories[i]),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tự build PC của bạn',
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Text('Tự động lọc linh kiện tương thích & gợi ý nguồn',
+                          style: TextStyle(color: Colors.white70)),
+                    ],
                   ),
                 ),
-                const _SectionTitle('Sản phẩm nổi bật'),
-                ProductGrid(products: products, shrinkWrap: true),
+                Icon(Icons.build_circle, color: Colors.white, size: 48),
               ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
+  const _SectionTitle(this.text, {this.onMore});
 
   final String text;
+  final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            ),
+            if (onMore != null) TextButton(onPressed: onMore, child: const Text('Xem tất cả')),
+          ],
+        ),
       );
 }
 
